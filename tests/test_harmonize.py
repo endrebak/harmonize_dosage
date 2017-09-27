@@ -164,8 +164,53 @@ def test_palindromic_to_swap(df):
 
 def to_flip(m, tolerance):
 
-    return m.loc[_to_flip].rsid
+    return m.loc[_to_flip(m, tolerance)].rsid
 
 def _to_flip(m, tolerance):
 
-    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2)
+    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_palindromic_to_swap(m, tolerance)
+
+def test_to_flip(df):
+
+    flip = to_flip(df, 0.08)
+
+    print(flip)
+    assert flip.reset_index(drop=True).equals(pd.Series(["h", "j"]))
+
+
+def _to_swap_and_flip(m, tolerance):
+    # to swap(m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance)
+
+    return (m.E1.apply(switch_alleles) == m.O2) & (m.E2.apply(switch_alleles) == m.O1) & ~_fine_snps(m, tolerance) & ~_palindrome(m)
+
+
+def to_swap_and_flip(m, tolerance):
+
+    return m.loc[_to_swap_and_flip(m, tolerance)].rsid
+
+
+def test_to_swap_and_flip(df):
+
+    sf = to_swap_and_flip(df, 0.08)
+
+    print(sf)
+    assert sf.reset_index(drop=True).equals(pd.Series(["i"]))
+
+
+def _incompatible(m, tolerance):
+
+    return ~_to_flip(m, tolerance) & ~_palindromic_to_swap(m, tolerance) & ~_to_swap(m, tolerance) & ~_inferrable_palindrome(m, tolerance) & ~_non_inferrable_palindrome(m, tolerance) & ~_fine_snps(m, tolerance) & ~_to_swap_and_flip(m, tolerance)
+
+
+def incompatible(m, tolerance):
+
+    return m.loc[_incompatible(m, tolerance)].rsid
+
+
+def test_incompatible(df):
+
+    incom = incompatible(df, 0.08)
+
+    print(incom)
+
+    assert incom.reset_index(drop=True).equals(pd.Series(["c"]))
