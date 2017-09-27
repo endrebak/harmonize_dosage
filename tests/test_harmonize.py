@@ -1,6 +1,6 @@
 from io import StringIO
 
-TODO: create functions that return non-overlapping indexes describing the type of SNP within the dataframe
+# TODO: create functions that return non-overlapping indexes describing the type of SNP within the dataframe
 
 import pytest
 
@@ -8,8 +8,13 @@ import pandas as pd
 
 from numpy import isclose
 
+switch_alleles = lambda a: {"A": "T",
+                            "T": "A",
+                            "C": "G",
+                            "G": "C",}[a] # "N": "N"
+
 @pytest.fixture
-def final_fixture():
+def df():
 
     """Thanks to Gibran Hemani for creating this test set."""
 
@@ -27,120 +32,140 @@ j  G  T  C  A        0.5  0.5              to_flip
 k  A  G  A  G        0.2  0.2                 fine
 l  T  G  G  T        0.2  0.8              to_swap"""
 
-    return pd.read_table(StringIO(c), sep="\s+", index_col="rsid")
+    return pd.read_table(StringIO(c), sep="\s+")
+
+def _palindrome(m):
+
+    return (m.E1 == m.E2.apply(switch_alleles)) & (m.O1 == m.O2.apply(switch_alleles)) & (m.E1 == m.O1) & (m.E2 == m.O2)
 
 
-@pytest.fixture
-def pt(): # palindromic_table
+def _non_inferrable_palindrome(m, tolerance):
 
-    c = """rsid   E1 E2 O1 O2       OAF  EAF
-rs1   C  G   C   G  0.45  0.01
-rs2   T  A   T   A  0.69802  0.2850"""
-
-    return pd.read_table(StringIO(c), sep="\s+", index_col="rsid")
+    return _palindrome(m) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
 
 
-@pytest.fixture
-def expected_result_palindromes():
-    s = StringIO("""rsid NonInferable
-rs1 True
-rs2 False""")
-    return pd.read_table(s, sep=" ", header=0, index_col=0)
+def _inferrable_palindrome(m, tolerance):
 
-switch_alleles = lambda a: {"A": "T",
-                            "T": "A",
-                            "C": "G",
-                            "G": "C",
-                            "N": "N"}[a]
-
-def is_palindromic(pt):
-
-    return (pt.E1.apply(switch_alleles) == pt.E2)
+   return _palindrome(m) & _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
 
 
-def non_inferable_palindromes(pt, threshold):
 
-    palindromic = is_palindromic(pt)
-    palindromic_df = pt[palindromic]
+def _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance):
 
-    # Check that the EAF is close to OAF
-    inferrable_and_right = isclose(palindromic_df.EAF, palindromic_df.OAF, threshold)
-    # Check that the EAF is close to OAF
-    inferrable_but_reverse = isclose(palindromic_df.EAF, 1 - palindromic_df.OAF, threshold)
+   outcome_differs = (m.OAF > 0.5 + tolerance) | (m.OAF < 0.5 - tolerance)
+   exposure_differs = (m.EAF > 0.5 + tolerance) | (m.EAF < 0.5 - tolerance)
 
-    print("inferrable_and_right", inferrable_and_right)
-    print("inferrable_but_reverse", inferrable_but_reverse)
-
-    palindromic_but_not_inferrable = palindromic & ~(inferrable_and_right | inferrable_but_reverse)
-
-    df = pd.DataFrame(palindromic_but_not_inferrable, index=palindromic_df.index, columns=["NonInferable"])
-
-    return df
+   return outcome_differs & exposure_differs
 
 
-def inferable_palindromes(pt, threshold):
+def _allele_frequencies_similar_within_tolerance(m, tolerance):
 
-    palindromic = is_palindromic(pt)
-    inferrable = isclose(pt.EAF, pt.OMAF, threshold)
-
-    palindromic_and_inferrable = palindromic & inferrable
-
-    df = pd.DataFrame(palindromic_and_inferrable, index=pt.index, columns=["NonInferable"])
-
-    return df
+    return pd.Series(isclose(m.OAF, m.EAF, tolerance), index=m.index)
 
 
-def test_palindrome(pt, expected_result_palindromes):
 
-    palindromic_but_not_inferrable = non_inferable_palindromes(pt, 0.08)
+def inferrable_palindromic_snp(m, tolerance):
 
-    print(palindromic_but_not_inferrable)
-    print(expected_result_palindromes)
-
-    assert palindromic_but_not_inferrable.equals(expected_result_palindromes)
+    x = _inferrable_palindrome(m, tolerance)
+    return m.loc[x].rsid
 
 
-@pytest.fixture
-def at(): # ambiguous_table
+def non_inferrable_palindromic_snp(m, tolerance):
 
-    # rsid   A1 A2 REF ALT       AF      MAF  FreqA1
-
-    c = """rsid   E1 E2 O1 O2       OAF      EAF
-rs4   A  G   A   C  0.20 0.50
-rs5   A  G   T   C  0.20 0.50"""
-
-    return pd.read_table(StringIO(c), sep="\s+", index_col="rsid")
+    x = _non_inferrable_palindrome(m, tolerance)
+    return m.loc[x].rsid
 
 
-def ambiguous_snps(at):
+def _fine_snps(m, tolerance):
 
-    equal1, switched1 = (at.E1 == at.O1), (at.E1 == at.O1.apply(switch_alleles))
-    equal2, switched2 = (at.E2 == at.O2), (at.E2 == at.O2.apply(switch_alleles))
+    similar_af = _allele_frequencies_similar_within_tolerance(m, tolerance)
+    not_palindromic = ~_non_inferrable_palindrome(m, tolerance)
 
-    snp_ambiguous = ~((equal1 == equal2) | (switched1 == switched2)).to_frame()
-    snp_ambiguous.columns = ["Ambiguous"]
-
-    return snp_ambiguous
+    return (m.E1 == m.O1) & (m.E2 == m.O2) & similar_af & not_palindromic
 
 
-@pytest.fixture
-def expected_result_ambiguous():
-    s = StringIO("""rsid Ambiguous
-rs4 True
-rs5 False""")
-    return pd.read_table(s, sep=" ", header=0, index_col=0)
+def fine_snps(m, tolerance):
+
+    fine = _fine_snps(m, tolerance)
+
+    return m.loc[fine].rsid
 
 
-def test_ambiguous(at, expected_result_ambiguous):
+def test_is_fine(df):
 
-    result = ambiguous_snps(at)
+    fine = fine_snps(df, 0.08)
 
-    print(result)
-    print(expected_result_ambiguous)
-
-    assert result.equals(expected_result_ambiguous)
+    assert fine.reset_index(drop=True).equals(pd.Series(["a", "e", "k"]))
 
 
-def switch_reverse_palindromes():
+def test_is_non_inferrable_palindromic_snp(df):
 
-    palindromic_but_inferable
+    non_inferrable_palindromic = non_inferrable_palindromic_snp(df, 0.08)
+
+    print(non_inferrable_palindromic)
+
+    assert non_inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["f"]))
+
+
+def is_inferrable_palindromic_snp(m, tolerance):
+
+    x = _inferrable_palindrome(m, tolerance) & ~_fine_snps(m, tolerance)
+
+    return m.loc[x].rsid
+
+
+def test_is_inferrable_palindromic_snp(df):
+
+    inferrable_palindromic = is_inferrable_palindromic_snp(df, 0.08)
+
+    print(inferrable_palindromic)
+
+    assert inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["d"]))
+
+
+def _to_swap(m, tolerance):
+
+    return (m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
+
+
+def to_swap(m, tolerance):
+
+    return m.loc[_to_swap(m, tolerance)].rsid
+
+
+def palindromic_to_swap(m, tolerance):
+
+    return m.loc[_palindromic_to_swap(m, tolerance)].rsid
+
+
+def _palindromic_to_swap(m, tolerance):
+
+    return (m.E1 == m.O2) & (m.E2 == m.O1) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
+
+
+def test_to_swap(df):
+
+    swap = to_swap(df, 0.08)
+
+    print(swap)
+
+    # swap.reset_index(drop=True)
+
+    assert swap.reset_index(drop=True).equals(pd.Series(["b", "l"]))
+
+
+def test_palindromic_to_swap(df):
+
+    palindromic_swap = palindromic_to_swap(df, 0.08)
+
+    print(palindromic_swap)
+    assert palindromic_swap.reset_index(drop=True).equals(pd.Series(["g"]))
+
+
+def to_flip(m, tolerance):
+
+    return m.loc[_to_flip].rsid
+
+def _to_flip(m, tolerance):
+
+    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2)
