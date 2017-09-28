@@ -6,12 +6,8 @@ import pytest
 
 import pandas as pd
 
-from numpy import isclose
 
-switch_alleles = lambda a: {"A": "T",
-                            "T": "A",
-                            "C": "G",
-                            "G": "C",}[a] # "N": "N"
+from harmonize.harmonize import *
 
 @pytest.fixture
 def df():
@@ -34,114 +30,30 @@ l  T  G  G  T        0.2  0.8              to_swap"""
 
     return pd.read_table(StringIO(c), sep="\s+")
 
-def _palindrome(m):
 
-    return (m.E1 == m.E2.apply(switch_alleles)) & (m.O1 == m.O2.apply(switch_alleles)) & (m.E1 == m.O1) & (m.E2 == m.O2)
+def test_incompatible(df):
 
+    incom = incompatible(df, 0.08)
 
-def _non_inferrable_palindrome(m, tolerance):
+    print(incom)
 
-    return _palindrome(m) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
-
-
-def _inferrable_palindrome(m, tolerance):
-
-   return _palindrome(m) & _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
+    assert incom.reset_index(drop=True).equals(pd.Series(["c"]))
 
 
+def test_to_swap_and_flip(df):
 
-def _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance):
+    sf = to_swap_and_flip(df, 0.08)
 
-   outcome_differs = (m.OAF > 0.5 + tolerance) | (m.OAF < 0.5 - tolerance)
-   exposure_differs = (m.EAF > 0.5 + tolerance) | (m.EAF < 0.5 - tolerance)
-
-   return outcome_differs & exposure_differs
-
-
-def _allele_frequencies_similar_within_tolerance(m, tolerance):
-
-    return pd.Series(isclose(m.OAF, m.EAF, tolerance), index=m.index)
+    print(sf)
+    assert sf.reset_index(drop=True).equals(pd.Series(["i"]))
 
 
+def test_to_flip(df):
 
-def inferrable_palindromic_snp(m, tolerance):
+    flip = to_flip(df, 0.08)
 
-    x = _inferrable_palindrome(m, tolerance)
-    return m.loc[x].rsid
-
-
-def non_inferrable_palindromic_snp(m, tolerance):
-
-    x = _non_inferrable_palindrome(m, tolerance)
-    return m.loc[x].rsid
-
-
-def _fine_snps(m, tolerance):
-
-    similar_af = _allele_frequencies_similar_within_tolerance(m, tolerance)
-    not_palindromic = ~_non_inferrable_palindrome(m, tolerance)
-
-    return (m.E1 == m.O1) & (m.E2 == m.O2) & similar_af & not_palindromic
-
-
-def fine_snps(m, tolerance):
-
-    fine = _fine_snps(m, tolerance)
-
-    return m.loc[fine].rsid
-
-
-def test_is_fine(df):
-
-    fine = fine_snps(df, 0.08)
-
-    assert fine.reset_index(drop=True).equals(pd.Series(["a", "e", "k"]))
-
-
-def test_is_non_inferrable_palindromic_snp(df):
-
-    non_inferrable_palindromic = non_inferrable_palindromic_snp(df, 0.08)
-
-    print(non_inferrable_palindromic)
-
-    assert non_inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["f"]))
-
-
-def is_inferrable_palindromic_snp(m, tolerance):
-
-    x = _inferrable_palindrome(m, tolerance) & ~_fine_snps(m, tolerance)
-
-    return m.loc[x].rsid
-
-
-def test_is_inferrable_palindromic_snp(df):
-
-    inferrable_palindromic = is_inferrable_palindromic_snp(df, 0.08)
-
-    print(inferrable_palindromic)
-
-    assert inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["d"]))
-
-
-def _to_swap(m, tolerance):
-
-    return (m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
-
-
-def to_swap(m, tolerance):
-
-    return m.loc[_to_swap(m, tolerance)].rsid
-
-
-def palindromic_to_swap(m, tolerance):
-
-    return m.loc[_palindromic_to_swap(m, tolerance)].rsid
-
-
-def _palindromic_to_swap(m, tolerance):
-
-    return (m.E1 == m.O2) & (m.E2 == m.O1) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
-
+    print(flip)
+    assert flip.reset_index(drop=True).equals(pd.Series(["h", "j"]))
 
 def test_to_swap(df):
 
@@ -161,56 +73,32 @@ def test_palindromic_to_swap(df):
     print(palindromic_swap)
     assert palindromic_swap.reset_index(drop=True).equals(pd.Series(["g"]))
 
+def test_is_fine(df):
 
-def to_flip(m, tolerance):
+    fine = fine_snps(df, 0.08)
 
-    return m.loc[_to_flip(m, tolerance)].rsid
-
-def _to_flip(m, tolerance):
-
-    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_palindromic_to_swap(m, tolerance)
-
-def test_to_flip(df):
-
-    flip = to_flip(df, 0.08)
-
-    print(flip)
-    assert flip.reset_index(drop=True).equals(pd.Series(["h", "j"]))
+    assert fine.reset_index(drop=True).equals(pd.Series(["a", "e", "k"]))
 
 
-def _to_swap_and_flip(m, tolerance):
-    # to swap(m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance)
+def test_is_non_inferrable_palindromic_snp(df):
 
-    return (m.E1.apply(switch_alleles) == m.O2) & (m.E2.apply(switch_alleles) == m.O1) & ~_fine_snps(m, tolerance) & ~_palindrome(m)
+    non_inferrable_palindromic = non_inferrable_palindromic_snp(df, 0.08)
 
+    print(non_inferrable_palindromic)
 
-def to_swap_and_flip(m, tolerance):
+    assert non_inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["f"]))
 
-    return m.loc[_to_swap_and_flip(m, tolerance)].rsid
+def test_is_inferrable_palindromic_snp(df):
 
+    inferrable_palindromic = is_inferrable_palindromic_snp(df, 0.08)
 
-def test_to_swap_and_flip(df):
+    print(inferrable_palindromic)
 
-    sf = to_swap_and_flip(df, 0.08)
-
-    print(sf)
-    assert sf.reset_index(drop=True).equals(pd.Series(["i"]))
+    assert inferrable_palindromic.reset_index(drop=True).equals(pd.Series(["d"]))
 
 
-def _incompatible(m, tolerance):
+def test_assign_table(df):
 
-    return ~_to_flip(m, tolerance) & ~_palindromic_to_swap(m, tolerance) & ~_to_swap(m, tolerance) & ~_inferrable_palindrome(m, tolerance) & ~_non_inferrable_palindrome(m, tolerance) & ~_fine_snps(m, tolerance) & ~_to_swap_and_flip(m, tolerance)
+    assign_table(df, 0.08)
 
-
-def incompatible(m, tolerance):
-
-    return m.loc[_incompatible(m, tolerance)].rsid
-
-
-def test_incompatible(df):
-
-    incom = incompatible(df, 0.08)
-
-    print(incom)
-
-    assert incom.reset_index(drop=True).equals(pd.Series(["c"]))
+    assert 0
