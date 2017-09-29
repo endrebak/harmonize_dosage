@@ -6,10 +6,8 @@ from numpy import isclose
 
 
 
-switch_alleles = lambda a: {"A": "T",
-                            "T": "A",
-                            "C": "G",
-                            "G": "C",}[a] # "N": "N"
+def switch_alleles(a):
+    return {"A": "T", "T": "A", "C": "G", "G": "C"}[a]
 
 
 def _palindrome(m):
@@ -24,8 +22,12 @@ def _non_inferrable_palindrome(m, tolerance):
 
 def _inferrable_palindrome(m, tolerance):
 
-   return _palindrome(m) & _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
+    return _palindrome(m) & _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance) & _inverse_allele_frequencies_similar_within_tolerance(m, tolerance)
 
+
+def _inverse_allele_frequencies_similar_within_tolerance(m, tolerance):
+
+    return pd.Series(isclose(1 - m.OAF, m.EAF, atol=tolerance), index=m.index)
 
 
 def _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance):
@@ -52,7 +54,8 @@ def _fine_snps(m, tolerance):
     similar_af = _allele_frequencies_similar_within_tolerance(m, tolerance)
     not_palindromic = ~_non_inferrable_palindrome(m, tolerance)
 
-    return (m.E1 == m.O1) & (m.E2 == m.O2) & similar_af & not_palindromic
+    fine = (m.E1 == m.O1) & (m.E2 == m.O2) & (m.E1 != m.E2) & similar_af & not_palindromic
+    return fine
 
 
 def fine_snps(m, tolerance):
@@ -62,7 +65,7 @@ def fine_snps(m, tolerance):
     return m.loc[fine].rsid
 
 
-def is_inferrable_palindromic_snp(m, tolerance):
+def inferrable_palindromic_snp(m, tolerance):
 
     x = _inferrable_palindrome(m, tolerance) & ~_fine_snps(m, tolerance)
 
@@ -71,7 +74,7 @@ def is_inferrable_palindromic_snp(m, tolerance):
 
 def _to_swap(m, tolerance):
 
-    return (m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
+    return (m.E1 == m.O2) & (m.E2 == m.O1) & (m.E1 != m.E2) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
 
 
 def to_swap(m, tolerance):
@@ -93,19 +96,18 @@ def to_flip(m, tolerance):
 
     return m.loc[_to_flip(m, tolerance)].rsid
 
+
 def _to_flip(m, tolerance):
 
     return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_palindromic_to_swap(m, tolerance)
 
 
-
 def _to_swap_and_flip(m, tolerance):
-    # to swap(m.E1 == m.O2) & (m.E2 == m.O1) & ~_palindromic_to_swap(m, tolerance)
 
     return (m.E1.apply(switch_alleles) == m.O2) & (m.E2.apply(switch_alleles) == m.O1) & ~_fine_snps(m, tolerance) & ~_palindrome(m)
 
 
-def to_swap_and_flip(m, tolerance):
+def to_flip_and_swap(m, tolerance):
 
     return m.loc[_to_swap_and_flip(m, tolerance)].rsid
 
@@ -121,14 +123,15 @@ def incompatible(m, tolerance):
 
 def assign_table(m, tolerance):
 
+    m = m.copy()
     d = {
          "fine": fine_snps(m, tolerance),
-         "inferrable_palindromic": is_inferrable_palindromic_snp(m, tolerance),
+         "inferrable_palindromic": inferrable_palindromic_snp(m, tolerance),
          "noninferrable_palindromic": non_inferrable_palindromic_snp(m, tolerance),
-         "to_swap": to_swap(m, tolerance),
-         "to_flip": to_flip(m, tolerance),
-         "to_swap_and_flip": to_swap_and_flip(m, tolerance),
-         "palindromic_to_swap": palindromic_to_swap(m, tolerance),
+         "swapped": to_swap(m, tolerance),
+         "flipped": to_flip(m, tolerance),
+         "flipped_and_swapped": to_flip_and_swap(m, tolerance),
+         "palindromic_swapped": palindromic_to_swap(m, tolerance),
          "incompatible": incompatible(m, tolerance)
     }
 
@@ -137,10 +140,15 @@ def assign_table(m, tolerance):
         if not li == lj:
             assert not i.intersection(j), "{}: {}\n{} {}\n{}".format(li, str(i), lj, str(j), set(i).intersection(j))
 
-    m.insert(len(m.columns), "Harmonize", "")
+    m.insert(len(m.columns), "SNPType", "")
     for l, v in d.items():
-        print(l)
-        print(v.index)
-        m.loc[v.index, "Harmonize"] = l
+        m.loc[v.index, "SNPType"] = l
 
-    print(m)
+    return m
+
+
+def sanity_check_table(m):
+
+    assert (1 >= m.OAF) & (0 <= m.OAF) & (1 >= m.EAF) & (m.EAF >= 0), "Some allele frequencies are above 1 or below 0."
+    valid_alleles = "A T C G".split()
+    assert m.A1.isin()
