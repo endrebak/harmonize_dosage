@@ -89,14 +89,10 @@ l  T  G  G  T  0.2  0.8              swapped                    swapped"""
 
     return pd.read_table(StringIO(c), sep="\s+")
 
-def test_bed_allele():
+def test_bad_allele():
 
-    with pytest.raises(KeyError) as exec_info:
+    with pytest.raises(KeyError):
         switch_alleles("B")
-
-    assert "Non-valid allele in dataset: B" in str(exec_info)
-
-
 
 
 
