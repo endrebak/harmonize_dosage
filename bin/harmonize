@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+
+"""
+harmonize-dosage
+Harmonize the dosages between exposure and outcome alleles for Mendelian Randomization.
+(Visit github.com/endrebak/harmonize-dosage for examples and help.)
+Usage:
+    harmonize-dosage [--tolerance=TOL] --exposure=EXP --outcome=OUT --dosage=DOS --output-dir=DIR
+    harmonize-dosage --help
+Arguments:
+    -e EXP --exposure EXP     Exposure file
+    -o OUT --outcome OUT      Outcome file
+    -d DOS --dosage DOS       Dosage file
+    -t TOL --tolerance TOL    Tolerance for considering AFs similar.  [default: 0.08]
+    -D DIR --output-dir DIR  Dir to put output files in.
+Options:
+    -h --help                 show this help message
+"""
+
+from subprocess import call
+from os.path import dirname
+
+import pandas as pd
+
+from docopt import docopt
+
+from harmonize.create_exposure_outcome_table import create_exposure_outcome_table
+from harmonize.harmonize import assign_table, sanity_check_table
+from harmonize.flip_swap import flip_swap_remove, flip_swap_remove_exposure_alleles, swap_dosages
+
+args = docopt(__doc__)
+
+tolerance = float(args["--tolerance"][0])
+outpath = args["--output-dir"][0]
+
+e = pd.read_table(args["--exposure"][0], sep="\s+")
+o = pd.read_table(args["--outcome"][0], sep="\s+")
+d = pd.read_table(args["--dosage"][0], sep="\s+")
+
+e = e.set_index("rs")
+o = o.set_index("rsid")
+
+eo = create_exposure_outcome_table(e, o)
+sanity_check_table(eo)
+at = assign_table(eo, tolerance)
+to_swap, to_flip, to_remove = flip_swap_remove(at, tolerance)
+harmonized_exposure = flip_swap_remove_exposure_alleles(e, to_flip, to_swap, to_remove)
+harmonized_dosage = swap_dosages(d, to_swap, to_remove)
+
+if outpath:
+    print(outpath)
+    call("mkdir -p {}".format(outpath), shell=True)
+
+harmonized_dosage.to_csv(outpath + "/harmonized_dosage.csv", sep=" ")
+harmonized_exposure.to_csv(outpath + "/harmonized_exposure.csv", sep=" ")
+at.to_csv(outpath + "/snp_classifications.csv", sep=" ")

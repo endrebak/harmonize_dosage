@@ -144,11 +144,11 @@ def assign_table(m, tolerance):
     for l, v in d.items():
         m.loc[v.index, "SNPType"] = l
 
-    return m
+    return m.set_index("rsid")
 
 
 def sanity_check_table(m):
 
-    assert (1 >= m.OAF) & (0 <= m.OAF) & (1 >= m.EAF) & (m.EAF >= 0), "Some allele frequencies are above 1 or below 0."
+    assert all(1 >= m.OAF) and all(0 <= m.OAF) and all(1 >= m.EAF) and all(m.EAF >= 0), "Some allele frequencies are above 1 or below 0."
     valid_alleles = "A T C G".split()
-    assert m.A1.isin()
+    assert all(m.E1.isin(valid_alleles)) and all(m.E2.isin(valid_alleles)) and all(m.O1.isin(valid_alleles)) and all(m.O2.isin(valid_alleles))

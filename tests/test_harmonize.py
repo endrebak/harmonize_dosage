@@ -4,7 +4,6 @@ import pytest
 
 import pandas as pd
 
-
 from harmonize.harmonize import *
 
 
@@ -46,7 +45,7 @@ k  A  T  A  T        0.43  0.57 noninferrable_palindromic
 l  A  T  A  T        0.42  0.58 noninferrable_palindromic
 m  A  T  A  T        0.41  0.59 inferrable_palindromic"""
 
-    return pd.read_table(StringIO(c), sep="\s+")
+    return pd.read_table(StringIO(c), sep="\s+", index_col=0)
 
 
 @pytest.fixture
@@ -87,7 +86,7 @@ j  G  T  C  A  0.5  0.5              flipped                    flipped
 k  A  G  A  G  0.2  0.2                 fine                       fine
 l  T  G  G  T  0.2  0.8              swapped                    swapped"""
 
-    return pd.read_table(StringIO(c), sep="\s+")
+    return pd.read_table(StringIO(c), sep="\s+", index_col=0)
 
 def test_bad_allele():
 
@@ -210,8 +209,8 @@ def test_assign_table2(df2, expected_result_df2):
 
     result = assign_table(df2, 0.08)
 
-    print(result)
-    print(expected_result_df2)
+    # print(result)
+    # print(expected_result_df2)
 
     # print(result.dtypes)
     # print(expected_result_df2.dtypes)
