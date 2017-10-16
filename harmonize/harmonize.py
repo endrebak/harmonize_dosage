@@ -125,14 +125,14 @@ def assign_table(m, tolerance):
 
     m = m.copy()
     d = {
-         "fine": fine_snps(m, tolerance),
-         "inferrable_palindromic": inferrable_palindromic_snp(m, tolerance),
-         "noninferrable_palindromic": non_inferrable_palindromic_snp(m, tolerance),
-         "swapped": to_swap(m, tolerance),
-         "flipped": to_flip(m, tolerance),
-         "flipped_and_swapped": to_flip_and_swap(m, tolerance),
-         "palindromic_swapped": palindromic_to_swap(m, tolerance),
-         "incompatible": incompatible(m, tolerance)
+        "fine": fine_snps(m, tolerance),
+        "inferrable_palindromic": inferrable_palindromic_snp(m, tolerance),
+        "noninferrable_palindromic": non_inferrable_palindromic_snp(m, tolerance),
+        "swapped": to_swap(m, tolerance),
+        "flipped": to_flip(m, tolerance),
+        "flipped_and_swapped": to_flip_and_swap(m, tolerance),
+        "palindromic_swapped": palindromic_to_swap(m, tolerance),
+        "incompatible": incompatible(m, tolerance)
     }
 
     for (li, i), (lj, j) in product(d.items(), repeat=2):
@@ -149,6 +149,7 @@ def assign_table(m, tolerance):
 
 def sanity_check_table(m):
 
-    assert all(1 >= m.OAF) and all(0 <= m.OAF) and all(1 >= m.EAF) and all(m.EAF >= 0), "Some allele frequencies are above 1 or below 0."
+    assert all(m.OAF <= 1) and all(m.OAF >= 0) and all(m.EAF <= 1) and all(m.EAF >= 0), \
+        "Some allele frequencies are above 1 or below 0."
     valid_alleles = "A T C G".split()
     assert all(m.E1.isin(valid_alleles)) and all(m.E2.isin(valid_alleles)) and all(m.O1.isin(valid_alleles)) and all(m.O2.isin(valid_alleles))

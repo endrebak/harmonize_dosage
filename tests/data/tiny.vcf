@@ -1,0 +1,14 @@
+##fileformat=VCFv4.1
+##filedate=2016.9.6
+##source=Minimac3
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DS,Number=1,Type=Float,Description="Estimated Alternate Allele Dosage : [P(0/1)+2*P(1/1)]">
+##INFO=<ID=AF,Number=1,Type=Float,Description="Estimated Alternate Allele Frequency">
+##INFO=<ID=MAF,Number=1,Type=Float,Description="Estimated Minor Allele Frequency">
+##INFO=<ID=R2,Number=1,Type=Float,Description="Estimated Imputation Accuracy">
+##INFO=<ID=ER2,Number=1,Type=Float,Description="Empirical (Leave-One-Out) R-square (available only for genotyp
+##INFO=<ID=GENOTYPED,Number=1,Type=String,Description="Genotyped and Imputed">
+##contig=<ID=Z>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA1	NA2	NA3
+Z	15	bs1	C	G	.	PASS	AF=0.123;MAF=0.456;R2=0.0;ER2=0.98798;GENOTYPED	GT:DS	1|1:1.300	1|1:0.010	0|1:2.000
+Z	42	bs3	T	G	.	PASS	AF=0.123;MAF=0.456;R2=0.0;ER2=0.99968;GENOTYPED	GT:DS	0|1:2.000	0|1:0.000	1|0:1.000
