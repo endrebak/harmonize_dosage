@@ -21,8 +21,9 @@ def flip_swap_remove(assigned_table, tol=0.08):
 
 def swap_dosages(dosages, to_swap, to_remove):
 
-    to_remove = [s + "_dose" for s in to_remove]
-    to_swap = [s + "_dose" for s in to_swap]
+    if list(dosages.columns)[0].endswith("_dose"):
+        to_remove = [s + "_dose" for s in to_remove]
+        to_swap = [s + "_dose" for s in to_swap]
 
     dosages = dosages.drop(to_remove, axis=1)
     dosages.loc[:, to_swap] = 2 - dosages.loc[:, to_swap]

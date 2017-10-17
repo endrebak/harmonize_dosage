@@ -2,8 +2,7 @@ from itertools import product
 
 import pandas as pd
 
-from numpy import isclose
-
+from numpy import isclose, float64
 
 
 def switch_alleles(a):
@@ -40,7 +39,7 @@ def _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolera
 
 def _allele_frequencies_similar_within_tolerance(m, tolerance):
 
-    return pd.Series(isclose(m.OAF, m.EAF, tolerance), index=m.index)
+    return pd.Series(isclose(m.OAF, m.EAF, atol=tolerance), index=m.index)
 
 
 def non_inferrable_palindromic_snp(m, tolerance):
@@ -149,7 +148,16 @@ def assign_table(m, tolerance):
 
 def sanity_check_table(m):
 
-    assert all(m.OAF <= 1) and all(m.OAF >= 0) and all(m.EAF <= 1) and all(m.EAF >= 0), \
-        "Some allele frequencies are above 1 or below 0."
+    assert m.OAF.dtype == float64
+    assert m.EAF.dtype == float64
+
+    okay = (m.OAF <= 1) & (m.OAF >= 0) & (m.EAF <= 1) & (m.EAF >= 0)
+    not_okay = ~okay
+
+    assert not_okay.sum() == 0, \
+        "The following rows have invalid allele frequencies:\n" + str(m[not_okay])
+
+    # assert all(m.OAF <= 1) and all(m.OAF >= 0) and all(m.EAF <= 1) and all(m.EAF >= 0), \
+    #     "Some allele frequencies are above 1 or below 0."
     valid_alleles = "A T C G".split()
     assert all(m.E1.isin(valid_alleles)) and all(m.E2.isin(valid_alleles)) and all(m.O1.isin(valid_alleles)) and all(m.O2.isin(valid_alleles))
