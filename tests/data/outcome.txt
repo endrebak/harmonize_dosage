@@ -1,0 +1,3 @@
+SNP_hg18      SNP_hg19       rsid A1 A2   beta     se         N    P.value FreqA1
+chrZ:15 chrZ:15  bs1  A  g 0.0576 0.0071 123.02  1.982e-29           0.28500
+chrZ:42 chrZ:42 bs3  T  c 0.0191 0.0055 456.97  0.750e-33           0.84560

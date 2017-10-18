@@ -157,7 +157,5 @@ def sanity_check_table(m):
     assert not_okay.sum() == 0, \
         "The following rows have invalid allele frequencies:\n" + str(m[not_okay])
 
-    # assert all(m.OAF <= 1) and all(m.OAF >= 0) and all(m.EAF <= 1) and all(m.EAF >= 0), \
-    #     "Some allele frequencies are above 1 or below 0."
     valid_alleles = "A T C G".split()
     assert all(m.E1.isin(valid_alleles)) and all(m.E2.isin(valid_alleles)) and all(m.O1.isin(valid_alleles)) and all(m.O2.isin(valid_alleles))
