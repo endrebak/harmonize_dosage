@@ -1,5 +1,6 @@
 from numpy import float64
 
+
 def create_exposure_outcome_table(exposure, outcome):
 
     exposure, outcome = exposure.copy(), outcome.copy()
@@ -19,5 +20,6 @@ def create_exposure_outcome_table(exposure, outcome):
     df.loc[:, "O2"] = df.O2.str.upper()
 
     df.loc[:, ["OAF", "EAF"]] = df.loc[:, ["OAF", "EAF"]].astype(float64)
+    df.loc[:, "EAF"] = 1 - df.EAF
 
     return df["E1 E2 O1 O2 OAF EAF".split()].reset_index()

@@ -7,6 +7,13 @@ outcome file in a Mendelian Randomization experiment. It accepts both dosage and
 vcf.gz/vcf/bcf files as input. In the latter case, a dosage file is created from
 the vcf.
 
+## Changelog
+
+```
+0.0.3 (23/10/11)
+- critical fix: used inverse AF for effect allele
+```
+
 ## Install
 
 ```bash
