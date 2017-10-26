@@ -48,7 +48,7 @@ l  G  T"""
 @pytest.fixture
 def table():
 
-    c = """rsid E1 E2 O1 O2  OAF  EAF                 note                    SNPType
+    c = """rsid D1 D2 G1 G2  GAF  DAF                 note                    SNPType
 a  A  G  A  G  0.5  0.5                 fine                       fine
 b  A  G  G  A  0.5  0.5              swapped                    swapped
 c  A  G  T  A  0.5  0.5         incompatible               incompatible

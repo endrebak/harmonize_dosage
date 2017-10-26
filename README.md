@@ -41,7 +41,7 @@ tail -n 3 tests/data/*
 # "2" Z 42 "Z:42_G/T" "G" "T" "." "PASS" "AF=0.8456;MAF=0.14664;R2=0.99933;ER2=0.97741;GENOTYPED" "GT:DS" "bs3" "0.14664" "0.14664" "0.99933" "GENOTYPED"
 #
 # ==> tests/data/outcome.txt <==
-# SNP_hg18      SNP_hg19       rsid A1 A2   beta     se         N    P.value FreqA1
+# SNP_hg18      SNP_hg19       rsid A1 A2   beta     se         N    P.value FreqA2
 # chrZ:15 chrZ:15  bs1  A  g 0.0576 0.0071 123.02  1.982e-29           0.28500
 # chrZ:42 chrZ:42 bs3  T  c 0.0191 0.0055 456.97  0.750e-33           0.84560
 #
@@ -52,7 +52,7 @@ tail -n 3 tests/data/*
 
 # run hdose
 hdose -e tests/data/exposure.txt -d tests/data/tiny.vcf  -o tests/data/outcome.txt \
--D outfolder_test -O 'A1,A2,rsid,FreqA1' -E 'REF,ALT,rs,AF'
+-D outfolder_test -O 'A1,A2,rsid,FreqA2' -E 'REF,ALT,rs,AF'
 
 # view output files
 head outfolder_quickstart/*
@@ -67,10 +67,10 @@ head outfolder_quickstart/*
 # bs1 Z 15 Z:15_G/A A G . PASS AF=0.285;MAF=0.36146;R2=0.99242 GT:DS 0.63854 0.36146 0.9924200000000001 IMPUTED
 #
 # ==> outfolder_quickstart/missing_data.csv <==
-#  rsid E1 E2 O1 O2 OAF EAF
+#  rsid D1 D2 G1 G2 GAF DAF
 #
 # ==> outfolder_quickstart/snp_classifications.csv <==
-# rsid E1 E2 O1 O2 OAF EAF SNPType
+# rsid D1 D2 G1 G2 GAF DAF SNPType
 # bs1 G A A G 0.285 0.63854 swapped
 # bs3 G T T C 0.8456 0.14664000000000002 incompatible
 ```
@@ -98,7 +98,7 @@ Arguments:
     -O OC --outcome-columns   Comma-separated names of the columns containing the
                               reference allele, alternate allele, rsid and
                               allele frequency in the outcome file.
-                              [default: A1,A2,rsid,FreqA1]
+                              [default: A1,A2,rsid,FreqA2]
 Options:
     -h --help                 show this help message
 ```

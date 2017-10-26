@@ -1,25 +1,24 @@
 from numpy import float64
 
 
-def create_exposure_outcome_table(exposure, outcome):
+def create_exposure_outcome_table(dosage_info, gwas):
 
-    exposure, outcome = exposure.copy(), outcome.copy()
+    dosage_info, gwas = dosage_info.copy(), gwas.copy()
 
-    cols_to_keep_exposure = "REF ALT AF".split()
-    cols_to_keep_outcome = "A1 A2 FreqA1".split()
+    cols_to_keep_dosage_info = "REF ALT AF".split()
+    cols_to_keep_gwas = "A1 A2 FreqA2".split()
 
-    cols_to_drop_exposure = [c for c in exposure.columns if c not in cols_to_keep_exposure]
-    cols_to_drop_outcome = [c for c in outcome.columns if c not in cols_to_keep_outcome]
+    cols_to_drop_dosage_info = [c for c in dosage_info.columns if c not in cols_to_keep_dosage_info]
+    cols_to_drop_gwas = [c for c in gwas.columns if c not in cols_to_keep_gwas]
 
-    exposure = exposure.drop(cols_to_drop_exposure, 1)
-    outcome = outcome.drop(cols_to_drop_outcome, 1)
+    dosage_info = dosage_info.drop(cols_to_drop_dosage_info, 1)
+    gwas = gwas.drop(cols_to_drop_gwas, 1)
 
-    df = outcome.join(exposure)
-    df.columns = "O1 O2 OAF E1 E2 EAF".split()
+    df = gwas.join(dosage_info)
 
-    df.loc[:, "O2"] = df.O2.str.upper()
+    df = df.rename(columns={"A1": "G1", "A2": "G2", "FreqA2": "GAF", "REF": "D1", "ALT": "D2", "AF": "DAF"})
 
-    df.loc[:, ["OAF", "EAF"]] = df.loc[:, ["OAF", "EAF"]].astype(float64)
-    df.loc[:, "EAF"] = 1 - df.EAF
+    df.loc[:, "G2"] = df.G2.str.upper()
+    df.loc[:, ["GAF", "DAF"]] = df.loc[:, ["GAF", "DAF"]].astype(float64)
 
-    return df["E1 E2 O1 O2 OAF EAF".split()].reset_index()
+    return df["D1 D2 G1 G2 GAF DAF".split()].reset_index()

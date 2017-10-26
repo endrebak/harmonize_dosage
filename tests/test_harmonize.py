@@ -12,7 +12,7 @@ def df2():
 
     """Thanks to Gibran Hemani for creating this test set."""
 
-    c = """rsid   E1 E2 O1 O2       OAF   EAF
+    c = """rsid   D1 D2 G1 G2       GAF   DAF
 a  A  G  G  G        0.5  0.5
 b  G  G  G  G        0.5  0.5
 c  T  C  A  G        0.5  0.5
@@ -31,7 +31,7 @@ m  A  T  A  T        0.41  0.59"""
 @pytest.fixture
 def expected_result_df2():
 
-    c = """rsid   E1 E2 O1 O2       OAF   EAF  SNPType
+    c = """rsid   D1 D2 G1 G2       GAF   DAF  SNPType
 a  A  G  G  G        0.5  0.5  incompatible
 b  G  G  G  G        0.5  0.5  incompatible
 c  T  C  A  G        0.5  0.5  flipped
@@ -53,7 +53,7 @@ def df1():
 
     """Thanks to Gibran Hemani for creating this test set."""
 
-    c = """rsid   E1 E2 O1 O2       OAF   EAF note
+    c = """rsid   D1 D2 G1 G2       GAF   DAF note
 a  A  G  A  G        0.5  0.5                 fine
 b  A  G  G  A        0.5  0.5              swapped
 c  A  G  T  A        0.5  0.5         incompatible
@@ -72,7 +72,7 @@ l  T  G  G  T        0.2  0.8              swapped"""
 @pytest.fixture
 def expected_result_df1():
 
-    c = """rsid E1 E2 O1 O2  OAF  EAF                 note                    SNPType
+    c = """rsid D1 D2 G1 G2  GAF  DAF                 note                    SNPType
 a  A  G  A  G  0.5  0.5                 fine                       fine
 b  A  G  G  A  0.5  0.5              swapped                    swapped
 c  A  G  T  A  0.5  0.5         incompatible               incompatible

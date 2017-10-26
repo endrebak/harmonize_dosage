@@ -11,7 +11,7 @@ def switch_alleles(a):
 
 def _palindrome(m):
 
-    return (m.E1 == m.E2.apply(switch_alleles)) & (m.O1 == m.O2.apply(switch_alleles)) & (m.E1 == m.O1) & (m.E2 == m.O2)
+    return (m.D1 == m.D2.apply(switch_alleles)) & (m.G1 == m.G2.apply(switch_alleles)) & (m.D1 == m.G1) & (m.D2 == m.G2)
 
 
 def _non_inferrable_palindrome(m, tolerance):
@@ -26,20 +26,20 @@ def _inferrable_palindrome(m, tolerance):
 
 def _inverse_allele_frequencies_similar_within_tolerance(m, tolerance):
 
-    return pd.Series(isclose(1 - m.OAF, m.EAF, atol=tolerance), index=m.index)
+    return pd.Series(isclose(1 - m.GAF, m.DAF, atol=tolerance), index=m.index)
 
 
 def _exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance):
 
-   outcome_differs = (m.OAF > 0.5 + tolerance) | (m.OAF < 0.5 - tolerance)
-   exposure_differs = (m.EAF > 0.5 + tolerance) | (m.EAF < 0.5 - tolerance)
+   outcome_differs = (m.GAF > 0.5 + tolerance) | (m.GAF < 0.5 - tolerance)
+   exposure_differs = (m.DAF > 0.5 + tolerance) | (m.DAF < 0.5 - tolerance)
 
    return outcome_differs & exposure_differs
 
 
 def _allele_frequencies_similar_within_tolerance(m, tolerance):
 
-    return pd.Series(isclose(m.OAF, m.EAF, atol=tolerance), index=m.index)
+    return pd.Series(isclose(m.GAF, m.DAF, atol=tolerance), index=m.index)
 
 
 def non_inferrable_palindromic_snp(m, tolerance):
@@ -53,7 +53,7 @@ def _fine_snps(m, tolerance):
     similar_af = _allele_frequencies_similar_within_tolerance(m, tolerance)
     not_palindromic = ~_non_inferrable_palindrome(m, tolerance)
 
-    fine = (m.E1 == m.O1) & (m.E2 == m.O2) & (m.E1 != m.E2) & similar_af & not_palindromic
+    fine = (m.D1 == m.G1) & (m.D2 == m.G2) & (m.D1 != m.D2) & similar_af & not_palindromic
     return fine
 
 
@@ -73,7 +73,7 @@ def inferrable_palindromic_snp(m, tolerance):
 
 def _to_swap(m, tolerance):
 
-    return (m.E1 == m.O2) & (m.E2 == m.O1) & (m.E1 != m.E2) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
+    return (m.D1 == m.G2) & (m.D2 == m.G1) & (m.D1 != m.D2) & ~_palindromic_to_swap(m, tolerance) & ~_to_flip(m, tolerance)
 
 
 def to_swap(m, tolerance):
@@ -88,7 +88,7 @@ def palindromic_to_swap(m, tolerance):
 
 def _palindromic_to_swap(m, tolerance):
 
-    return (m.E1 == m.O2) & (m.E2 == m.O1) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
+    return (m.D1 == m.G2) & (m.D2 == m.G1) & (m.D1.apply(switch_alleles) == m.G1) & (m.D2.apply(switch_alleles) == m.G2) & ~_exposure_and_outcome_allele_frequencies_differ_from_fifty_percent(m, tolerance)
 
 
 def to_flip(m, tolerance):
@@ -98,12 +98,12 @@ def to_flip(m, tolerance):
 
 def _to_flip(m, tolerance):
 
-    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.E1.apply(switch_alleles) == m.O1) & (m.E2.apply(switch_alleles) == m.O2) & ~_palindromic_to_swap(m, tolerance)
+    return _allele_frequencies_similar_within_tolerance(m, tolerance) & (m.D1.apply(switch_alleles) == m.G1) & (m.D2.apply(switch_alleles) == m.G2) & ~_palindromic_to_swap(m, tolerance)
 
 
 def _to_swap_and_flip(m, tolerance):
 
-    return (m.E1.apply(switch_alleles) == m.O2) & (m.E2.apply(switch_alleles) == m.O1) & ~_fine_snps(m, tolerance) & ~_palindrome(m)
+    return (m.D1.apply(switch_alleles) == m.G2) & (m.D2.apply(switch_alleles) == m.G1) & ~_fine_snps(m, tolerance) & ~_palindrome(m)
 
 
 def to_flip_and_swap(m, tolerance):
@@ -146,16 +146,17 @@ def assign_table(m, tolerance):
     return m.set_index("rsid")
 
 
+
 def sanity_check_table(m):
 
-    assert m.OAF.dtype == float64
-    assert m.EAF.dtype == float64
+    assert m.GAF.dtype == float64
+    assert m.DAF.dtype == float64
 
-    okay = (m.OAF <= 1) & (m.OAF >= 0) & (m.EAF <= 1) & (m.EAF >= 0)
+    okay = (m.GAF <= 1) & (m.GAF >= 0) & (m.DAF <= 1) & (m.DAF >= 0)
     not_okay = ~okay
 
     assert not_okay.sum() == 0, \
         "The following rows have invalid allele frequencies:\n" + str(m[not_okay])
 
     valid_alleles = "A T C G".split()
-    assert all(m.E1.isin(valid_alleles)) and all(m.E2.isin(valid_alleles)) and all(m.O1.isin(valid_alleles)) and all(m.O2.isin(valid_alleles))
+    assert all(m.D1.isin(valid_alleles)) and all(m.D2.isin(valid_alleles)) and all(m.G1.isin(valid_alleles)) and all(m.G2.isin(valid_alleles))

@@ -2,26 +2,28 @@
 
 """
 hdose
-Harmonize the dosages between exposure and outcome alleles for Mendelian Randomization.
+Harmonize the dosages between dosage_info and GWAS alleles for Mendelian Randomization.
 (Visit github.com/endrebak/harmonize-dosage for examples and help.)
 Usage:
-    hdose --exposure=EXP --outcome=OUT --dosage=DOS --output-dir=DIR
-          [--tolerance=TOL] [--outcome-columns=OC] [--exposure-columns=EC]
+    hdose --dosage-info=DSI --GWAS=GWS --dosage=DOS --output-dir=DIR
+          [--tolerance=TOL] [--GWAS-columns=GWC] [--dosage-info-columns=DSC]
     hdose --help
 Arguments:
-    -e EXP --exposure EXP     Exposure file
-    -o OUT --outcome OUT      Outcome file
-    -d DOS --dosage DOS       Dosage file
-    -t TOL --tolerance TOL    Tolerance for considering AFs similar.  [default: 0.08]
-    -D DIR --output-dir DIR   Dir to put output files in.
-    -E EC --exposure-columns  Comma-separated names of the columns containing the
-                              reference allele, alternate allele, rsid and
-                              allele frequency in the outcome file.
-                              [default: REF,ALT,rs,AF]
-    -O OC --outcome-columns   Comma-separated names of the columns containing the
-                              reference allele, alternate allele, rsid and
-                              allele frequency in the outcome file.
-                              [default: A1,A2,rsid,FreqA1]
+    -d DSI --dosage-info DSI          Dosage info file
+    -g GWS --GWAS GWS                 GWAS info file
+    -v DOS --dosage DOS               Dosage file (bcf/dosage/vcf/vcf.gz)
+    -t TOL --tolerance TOL            Tolerance for considering AFs similar.  [default: 0.08]
+    -o DIR --output-dir DIR           Dir to put output files in.
+    -D DSC --dosage-info-columns DSC  Comma-separated names of the columns containing the
+                                      reference allele, alternate  allele, rsid and
+                                      allele frequency in the dosage-info file. The allele frequency
+                                      should belong to the alternate allele.
+                                      [default: REF,ALT,rs,AF]
+    -G GWC --GWAS-columns GWC         Comma-separated names of the columns containing the
+                                      reference allele, alternate allele, rsid and
+                                      allele frequency in the GWAS file. The allele frequency
+                                      should belong to the alternate allele.
+                                      [default: A1,A2,rsid,FreqA2]
 Options:
     -h --help                 show this help message
 """
@@ -39,7 +41,7 @@ from harmonize.vcf_to_dosage import vcf_to_dosage
 
 
 def main():
-    """Harmonize outcome and exposure alleles."""
+    """Harmonize GWAS and dosage_info alleles."""
 
     args = docopt(__doc__)
 
@@ -49,23 +51,23 @@ def main():
     if outpath:
         call("mkdir -p {}".format(outpath), shell=True)
 
-    assert len(args["--exposure-columns"][0].split(",")) == 4,\
-      "Exactly four columns are needed in --exposure-columns"
-    assert len(args["--outcome-columns"][0].split(",")) == 4,\
-        "Exactly four columns are needed in --outcome-columns"
+    assert len(args["--dosage-info-columns"][0].split(",")) == 4,\
+-     "Exactly four columns are needed in --dosage-info-columns"
+    assert len(args["--GWAS-columns"][0].split(",")) == 4,\
+        "Exactly four columns are needed in --GWAS-columns"
 
-    exposure_columns = {k: v for k, v in
-                        zip(args["--exposure-columns"][0].split(","), "REF,ALT,rs,AF".split(","))}
-    outcome_columns = {k: v for k, v in
-                       zip(args["--outcome-columns"][0].split(","), "A1,A2,rsid,FreqA1".split(","))}
+    dosage_info_columns = {k: v for k, v in
+                           zip(args["--dosage-info-columns"][0].split(","), "REF,ALT,rs,AF".split(","))}
+    gwas_columns = {k: v for k, v in
+                    zip(args["--GWAS-columns"][0].split(","), "A1,A2,rsid,FreqA2".split(","))}
 
-    exposure = pd.read_table(args["--exposure"][0], sep=r"\s+")
-    outcome = pd.read_table(args["--outcome"][0], sep=r"\s+")
+    dosage_info = pd.read_table(args["--dosage-info"][0], sep=r"\s+")
+    gwas = pd.read_table(args["--GWAS"][0], sep=r"\s+")
 
-    original_exposure_names = list(exposure.columns)
+    original_dosage_info_names = list(dosage_info.columns)
 
-    exposure.columns = [exposure_columns.get(c, c) for c in exposure.columns]
-    outcome.columns = [outcome_columns.get(c, c) for c in outcome.columns]
+    dosage_info.columns = [dosage_info_columns.get(c, c) for c in dosage_info.columns]
+    gwas.columns = [gwas_columns.get(c, c) for c in gwas.columns]
 
     dosage_path = args["--dosage"][0]
 
@@ -75,26 +77,27 @@ def main():
     else:
         dosage = pd.read_table(dosage_path, sep=r"\s+", index_col=0)
 
-    exposure = exposure.set_index("rs")
-    outcome = outcome.set_index("rsid")
+    dosage_info = dosage_info.set_index("rs")
+    gwas = gwas.set_index("rsid")
 
-    exposure_outcome = create_exposure_outcome_table(exposure, outcome)
+    gwas_dosage_info = create_exposure_outcome_table(dosage_info, gwas)
 
-    missing_data = exposure_outcome.loc[exposure_outcome.isnull().sum(axis=1).astype(bool)]
-    exposure_outcome = exposure_outcome.dropna()
+    missing_data = gwas_dosage_info.loc[gwas_dosage_info.isnull().sum(axis=1).astype(bool)]
+    gwas_dosage_info = gwas_dosage_info.dropna()
 
-    sanity_check_table(exposure_outcome)
+    sanity_check_table(gwas_dosage_info)
 
-    snp_classifications = assign_table(exposure_outcome, tolerance)
+    snp_classifications = assign_table(gwas_dosage_info, tolerance)
     to_swap, to_flip, to_remove = flip_swap_remove(snp_classifications, tolerance)
-    harmonized_exposure = flip_swap_remove_exposure_alleles(exposure, to_flip, to_swap, to_remove)
-    harmonized_exposure = harmonized_exposure.reset_index()
+    harmonized_dosage_info = flip_swap_remove_exposure_alleles(dosage_info, to_flip, to_swap, to_remove)
+    harmonized_dosage_info = harmonized_dosage_info.reset_index()
 
     harmonized_dosage = swap_dosages(dosage, to_swap, to_remove)
 
     harmonized_dosage.to_csv(outpath + "/harmonized_dosage.csv", sep=" ")
-    harmonized_exposure.to_csv(outpath + "/harmonized_exposure.csv", sep=" ",
-                               header=original_exposure_names, index=False)
+    harmonized_dosage_info.to_csv(outpath + "/harmonized_dosage_info.csv", sep=" ",
+                               header=original_dosage_info_names, index=False)
+
     snp_classifications.to_csv(outpath + "/snp_classifications.csv", sep=" ")
     missing_data.to_csv(outpath + "/missing_data.csv", sep=" ", na_rep="NA")
 
