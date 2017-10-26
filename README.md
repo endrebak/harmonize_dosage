@@ -114,3 +114,7 @@ MIT
 ## Authors
 
 Endre Bakken Stovner and Ben Michael Brumpton
+
+## Thanks
+
+* Humaira Rasheed (testing the script)
