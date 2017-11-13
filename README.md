@@ -2,14 +2,16 @@
 
 Harmonize dosage, not effect, for mendelian randomization.
 
-harmonize-dosage is a program to harmonize the dosage and exposure files to the
-outcome file in a Mendelian Randomization experiment. It accepts both dosage and
-vcf.gz/vcf/bcf files as input. In the latter case, a dosage file is created from
-the vcf.
+harmonize-dosage is a program to harmonize the dosage and dosage info files to
+the GWAS file in a Mendelian Randomization experiment. It accepts both dosage
+files and vcf.gz/vcf/bcf files as input. In the latter case, a dosage file is
+created from the vcf.
 
 ## Changelog
 
 ```
+0.0.4 (30/10/11)
+- much renaming and improving
 0.0.3 (23/10/11)
 - critical fix: used inverse AF for effect allele
 ```
@@ -51,10 +53,14 @@ tail -n 3 tests/data/*
 # Z	42	bs3	T	G	.	PASS	AF=0.123;MAF=0.456;R2=0.0;ER2=0.99968;GENOTYPED	GT:DS	0|1:2.000	0|1:0.000	1|0:1.000
 
 # run hdose
-hdose -e tests/data/exposure.txt -d tests/data/tiny.vcf  -o tests/data/outcome.txt \
--D outfolder_test -O 'A1,A2,rsid,FreqA2' -E 'REF,ALT,rs,AF'
+hdose -d tests/data/exposure.txt -v tests/data/tiny.vcf  -g tests/data/outcome.txt \
+-o outfolder_quickstart -G 'A1,A2,rsid,FreqA1' -D 'REF,ALT,rs,AF'
+
+# swapped 50.0
+# incompatible 50.0
 
 # view output files
+# only one column in dosage file since incompatible snps are removed
 head outfolder_quickstart/*
 # ==> outfolder_quickstart/harmonized_dosage.csv <==
 # ID bs1_dose
@@ -62,7 +68,7 @@ head outfolder_quickstart/*
 # NA2 1.99
 # NA3 0.0
 #
-# ==> outfolder_quickstart/harmonized_exposure.csv <==
+# ==> outfolder_quickstart/harmonized_dosage_info.csv <==
 # #CHROM POS ID REF ALT QUAL FILTER INFO FORMAT rs AF MAF RSQ GT
 # bs1 Z 15 Z:15_G/A A G . PASS AF=0.285;MAF=0.36146;R2=0.99242 GT:DS 0.63854 0.36146 0.9924200000000001 IMPUTED
 #
@@ -77,28 +83,32 @@ head outfolder_quickstart/*
 
 ## Usage
 
+(Might be slightly out of date.)
+
 ```
 hdose
-Harmonize the dosages between exposure and outcome alleles for Mendelian Randomization.
+Harmonize the dosages between dosage_info and GWAS alleles for Mendelian Randomization.
 (Visit github.com/endrebak/harmonize-dosage for examples and help.)
 Usage:
-    hdose --exposure=EXP --outcome=OUT --dosage=DOS --output-dir=DIR
-          [--tolerance=TOL] [--outcome-columns=OC] [--exposure-columns=EC]
+    hdose --dosage-info=DSI --GWAS=GWS [--dosage=DOS] --output-dir=DIR
+          [--tolerance=TOL] [--GWAS-columns=GWC] [--dosage-info-columns=DSC]
     hdose --help
 Arguments:
-    -e EXP --exposure EXP     Exposure file
-    -o OUT --outcome OUT      Outcome file
-    -d DOS --dosage DOS       Dosage file
-    -t TOL --tolerance TOL    Tolerance for considering AFs similar.  [default: 0.08]
-    -D DIR --output-dir DIR   Dir to put output files in.
-    -E EC --exposure-columns  Comma-separated names of the columns containing the
-                              reference allele, alternate allele, rsid and
-                              allele frequency in the outcome file.
-                              [default: REF,ALT,rs,AF]
-    -O OC --outcome-columns   Comma-separated names of the columns containing the
-                              reference allele, alternate allele, rsid and
-                              allele frequency in the outcome file.
-                              [default: A1,A2,rsid,FreqA2]
+    -d DSI --dosage-info DSI          Dosage info file
+    -g GWS --GWAS GWS                 GWAS info file
+    -v DOS --dosage DOS               Dosage file (bcf/dosage/vcf/vcf.gz)
+    -t TOL --tolerance TOL            Tolerance for considering AFs similar.  [default: 0.08]
+    -o DIR --output-dir DIR           Dir to put output files in.
+    -D DSC --dosage-info-columns DSC  Comma-separated names of the columns containing the
+                                      reference allele, alternate  allele, rsid and
+                                      allele frequency in the dosage-info file. The allele frequency
+                                      should belong to the alternate allele.
+                                      [default: REF,ALT,rs,AF]
+    -G GWC --GWAS-columns GWC         Comma-separated names of the columns containing the
+                                      reference allele, alternate allele, rsid and
+                                      allele frequency in the GWAS file. The allele frequency
+                                      should belong to the alternate allele.
+                                      [default: A1,A2,rsid,FreqA2]
 Options:
     -h --help                 show this help message
 ```

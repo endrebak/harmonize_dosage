@@ -26,9 +26,9 @@ RS2 C t 0.42"""
 
 @pytest.fixture
 def expected_result():
-    c = """rsid D1 D2 G1 G2 GAF DAF
-RS1 A G A G 0.53 0.37
-RS2 C T C T 0.42 0.86"""
+    c = """rsid D1 D2 G1 G2   GAF   DAF
+0  RS1  A  G  A  G  0.53  0.63
+1  RS2  C  T  C  T  0.42  0.14"""
 
     return pd.read_table(StringIO(c), sep="\s+")
 
