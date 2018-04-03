@@ -1,4 +1,5 @@
 from itertools import product
+import sys
 
 import pandas as pd
 
@@ -122,6 +123,8 @@ def incompatible(m, tolerance):
 
 def assign_table(m, tolerance):
 
+    print(m.head())
+
     m = m.copy()
     d = {
         "fine": fine_snps(m, tolerance),
@@ -152,11 +155,22 @@ def sanity_check_table(m):
     assert m.GAF.dtype == float64
     assert m.DAF.dtype == float64
 
-    okay = (m.GAF <= 1) & (m.GAF >= 0) & (m.DAF <= 1) & (m.DAF >= 0)
-    not_okay = ~okay
+    valid_allele_freqs = (m.GAF <= 1) & (m.GAF >= 0) & (m.DAF <= 1) & (m.DAF >= 0)
+    not_valid_allele_freqs = ~valid_allele_freqs
 
-    assert not_okay.sum() == 0, \
-        "The following rows have invalid allele frequencies:\n" + str(m[not_okay])
+    print(m)
 
-    valid_alleles = "A T C G".split()
-    assert all(m.D1.isin(valid_alleles)) and all(m.D2.isin(valid_alleles)) and all(m.G1.isin(valid_alleles)) and all(m.G2.isin(valid_alleles))
+    valid_allele_values = "A T C G".split()
+    valid_alleles = m.D1.isin(valid_allele_values) & m.D2.isin(valid_allele_values) & m.G1.isin(valid_allele_values) & m.G2.isin(valid_allele_values)
+    not_valid_alleles = ~valid_alleles
+
+    if not_valid_allele_freqs.sum() > 0:
+        print("Not all allele freqs are valid", file=sys.stderr)
+        print(m[not_valid_allele_freqs], file=sys.stderr)
+
+    if not_valid_allele_freqs.sum() > 0:
+        print("Not all alleles are valid!", file=sys.stderr)
+        print(m[not_valid_alleles], file=sys.stderr)
+
+    # print(not_valid_alleles | not_valid_allele_freqs)
+    return m[valid_alleles & valid_allele_freqs], m[not_valid_alleles | not_valid_allele_freqs]

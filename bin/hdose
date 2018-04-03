@@ -5,7 +5,7 @@ hdose
 Harmonize the dosages between dosage_info and GWAS alleles for Mendelian Randomization.
 (Visit github.com/endrebak/harmonize-dosage for examples and help.)
 Usage:
-    hdose --dosage-info=DSI --GWAS=GWS --dosage=DOS --output-dir=DIR
+    hdose --GWAS=GWS --dosage=DOS --output-dir=DIR [--dosage-info=DSI]
           [--tolerance=TOL] [--GWAS-columns=GWC] [--dosage-info-columns=DSC]
     hdose --help
 Arguments:
@@ -18,7 +18,7 @@ Arguments:
                                       reference allele, alternate  allele, rsid and
                                       allele frequency in the dosage-info file. The allele frequency
                                       should belong to the alternate allele.
-                                      [default: REF,ALT,rs,AF]
+                                      [default: REF,ALT,ID,AF]
     -G GWC --GWAS-columns GWC         Comma-separated names of the columns containing the
                                       reference allele, alternate allele, rsid and
                                       allele frequency in the GWAS file. The allele frequency
@@ -29,6 +29,7 @@ Options:
 """
 
 from subprocess import call
+import sys
 
 import pandas as pd
 
@@ -38,6 +39,7 @@ from harmonize.create_exposure_outcome_table import create_exposure_outcome_tabl
 from harmonize.harmonize import assign_table, sanity_check_table
 from harmonize.flip_swap import flip_swap_remove, flip_swap_remove_exposure_alleles, swap_dosages
 from harmonize.vcf_to_dosage import vcf_to_dosage
+from harmonize.fetch_dosage_info import fetch_dosage_info
 
 
 def main():
@@ -52,24 +54,60 @@ def main():
         call("mkdir -p {}".format(outpath), shell=True)
 
     assert len(args["--dosage-info-columns"][0].split(",")) == 4,\
--     "Exactly four columns are needed in --dosage-info-columns"
+      "Exactly four columns are needed in --dosage-info-columns"
     assert len(args["--GWAS-columns"][0].split(",")) == 4,\
         "Exactly four columns are needed in --GWAS-columns"
 
+    dosage_info_cols = args["--dosage-info-columns"][0].split(",")
+    dosage_snp_col = dosage_info_cols[2]
     dosage_info_columns = {k: v for k, v in
-                           zip(args["--dosage-info-columns"][0].split(","), "REF,ALT,rs,AF".split(","))}
+                           zip(dosage_info_cols, "REF,ALT,ID,AF".split(","))}
+    gwas_cols = args["--GWAS-columns"][0].split(",")
+    gwas_snp_col = gwas_cols[2]
     gwas_columns = {k: v for k, v in
-                    zip(args["--GWAS-columns"][0].split(","), "A1,A2,rsid,FreqA2".split(","))}
+                    zip(gwas_cols, "A1,A2,rsid,FreqA2".split(","))}
 
-    dosage_info = pd.read_table(args["--dosage-info"][0], sep=r"\s+")
+    dosage_path = args["--dosage"][0]
+
+    if args["--dosage-info"]:
+        dosage_info = pd.read_table(args["--dosage-info"][0], sep=r"\s+")
+    else:
+        assert dosage_path.endswith(".bcf") or dosage_path.endswith("vcf.gz") or dosage_path.endswith(".vcf"), \
+            "If no dosage info file is given, the dosage format must be bcf or vcf!"
+        print("Reading dosage info", file=sys.stderr)
+        dosage_info = fetch_dosage_info(dosage_path)
+        print("Done reading dosage info", file=sys.stderr)
+
+    print(dosage_info.head(), file=sys.stderr)
+
     gwas = pd.read_table(args["--GWAS"][0], sep=r"\s+")
+    print(gwas.head(), file=sys.stderr)
+
+    assert all([k in dosage_info.columns for k in dosage_info_columns.keys()]), "--dosage-info-columns not in dosage info file"
+    assert all([k in gwas.columns for k in gwas_columns.keys()]), "--gwas-columns not in dosage info file"
 
     original_dosage_info_names = list(dosage_info.columns)
 
     dosage_info.columns = [dosage_info_columns.get(c, c) for c in dosage_info.columns]
     gwas.columns = [gwas_columns.get(c, c) for c in gwas.columns]
 
-    dosage_path = args["--dosage"][0]
+    dosage_info = dosage_info.rename(index=str, columns=dosage_info_columns)
+    gwas = gwas.rename(index=str, columns=gwas_columns)
+
+    gwas = gwas.set_index("rsid")
+    dosage_info = dosage_info.set_index("ID")
+
+    gwas_dosage_info = create_exposure_outcome_table(dosage_info, gwas)
+
+    missing_data = gwas_dosage_info.loc[gwas_dosage_info.isnull().sum(axis=1).astype(bool)]
+    gwas_dosage_info = gwas_dosage_info.dropna()
+
+    gwas_dosage_info, invalid_snps = sanity_check_table(gwas_dosage_info)
+
+    snp_classifications = assign_table(gwas_dosage_info, tolerance)
+    to_swap, to_flip, to_remove = flip_swap_remove(snp_classifications, tolerance)
+    harmonized_dosage_info = flip_swap_remove_exposure_alleles(dosage_info, to_flip, to_swap, to_remove)
+    harmonized_dosage_info = harmonized_dosage_info.reset_index()
 
     if dosage_path.endswith(".vcf") or dosage_path.endswith(".vcf.gz") or \
        dosage_path.endswith(".bcf"):
@@ -77,29 +115,19 @@ def main():
     else:
         dosage = pd.read_table(dosage_path, sep=r"\s+", index_col=0)
 
-    dosage_info = dosage_info.set_index("rs")
-    gwas = gwas.set_index("rsid")
-
-    gwas_dosage_info = create_exposure_outcome_table(dosage_info, gwas)
-
-    missing_data = gwas_dosage_info.loc[gwas_dosage_info.isnull().sum(axis=1).astype(bool)]
-    gwas_dosage_info = gwas_dosage_info.dropna()
-
-    sanity_check_table(gwas_dosage_info)
-
-    snp_classifications = assign_table(gwas_dosage_info, tolerance)
-    to_swap, to_flip, to_remove = flip_swap_remove(snp_classifications, tolerance)
-    harmonized_dosage_info = flip_swap_remove_exposure_alleles(dosage_info, to_flip, to_swap, to_remove)
-    harmonized_dosage_info = harmonized_dosage_info.reset_index()
-
     harmonized_dosage = swap_dosages(dosage, to_swap, to_remove)
+
+    if not args["--dosage-info"]:
+        dosage_info.to_csv(outpath + "/dosage_info.csv", sep=" ", index=False)
 
     harmonized_dosage.to_csv(outpath + "/harmonized_dosage.csv", sep=" ")
     harmonized_dosage_info.to_csv(outpath + "/harmonized_dosage_info.csv", sep=" ",
                                header=original_dosage_info_names, index=False)
 
     snp_classifications.to_csv(outpath + "/snp_classifications.csv", sep=" ")
-    missing_data.to_csv(outpath + "/missing_data.csv", sep=" ", na_rep="NA")
+
+    missing_or_bad_data = pd.concat([missing_data, invalid_snps]).drop_duplicates()
+    missing_or_bad_data.to_csv(outpath + "/missing_or_bad_data.csv", sep=" ", na_rep="NA")
 
     return snp_classifications
 

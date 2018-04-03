@@ -21,4 +21,8 @@ def create_exposure_outcome_table(dosage_info, gwas):
     df.loc[:, "G2"] = df.G2.str.upper()
     df.loc[:, ["GAF", "DAF"]] = df.loc[:, ["GAF", "DAF"]].astype(float64)
 
-    return df["D1 D2 G1 G2 GAF DAF".split()].reset_index()
+    df = df["D1 D2 G1 G2 GAF DAF".split()].reset_index()
+
+    df.columns = ["rsid"] + list(df.columns)[1:]
+
+    return df
